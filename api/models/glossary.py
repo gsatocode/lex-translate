@@ -9,7 +9,7 @@ from api.models.base import Base
 
 class GlossaryTerm(Base):
     __tablename__ = "glossary_terms"
-    __table_args__ = (UniqueConstraint("org_id", "source_term"),)
+    __table_args__ = (UniqueConstraint("org_id", "source_term", name="uq_glossary_terms_org_source"),)
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
