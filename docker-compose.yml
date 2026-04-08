@@ -1,6 +1,7 @@
 services:
   api:
     build: .
+    entrypoint: ["/app/scripts/entrypoint.sh"]
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     ports:
@@ -30,10 +31,11 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    env_file: .env
     environment:
-      POSTGRES_USER: lex
-      POSTGRES_PASSWORD: lex
-      POSTGRES_DB: lextranslate
+      POSTGRES_USER: ${POSTGRES_USER:-lex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lex}
+      POSTGRES_DB: ${POSTGRES_DB:-lextranslate}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
