@@ -1,22 +1,23 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://lex:lex@localhost:5432/lextranslate"
-    redis_url: str = "redis://localhost:6379"
-    secret_key: str = "dev-secret-key-change-in-production"
+    database_url: str = Field(..., description="PostgreSQL async connection URL (postgresql+asyncpg://...)")
+    redis_url: str = Field(..., description="Redis connection URL")
+    secret_key: str = Field(..., min_length=32, description="JWT signing secret — generate with: openssl rand -hex 32")
 
-    llm_provider: str = "anthropic"
-    anthropic_api_key: str = ""
-    openai_api_key: str = ""
-    groq_api_key: str = ""
+    llm_provider: str = Field(default="anthropic")
+    anthropic_api_key: str = Field(default="")
+    openai_api_key: str = Field(default="")
+    groq_api_key: str = Field(default="")
 
-    r2_account_id: str = ""
-    r2_access_key: str = ""
-    r2_secret_key: str = ""
-    r2_bucket: str = "lex-translate"
+    r2_account_id: str = Field(default="")
+    r2_access_key: str = Field(default="")
+    r2_secret_key: str = Field(default="")
+    r2_bucket: str = Field(default="lex-translate")
 
     @property
     def r2_endpoint(self) -> str:

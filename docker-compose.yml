@@ -2,6 +2,7 @@ services:
   api:
     build: .
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
@@ -16,6 +17,7 @@ services:
   worker:
     build: .
     command: celery -A worker.celery_app worker --loglevel=info --concurrency=2
+    restart: unless-stopped
     volumes:
       - .:/app
     env_file: .env
@@ -27,6 +29,7 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: lex
       POSTGRES_PASSWORD: lex
@@ -41,6 +44,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     volumes:
       - redis_data:/data
     healthcheck:

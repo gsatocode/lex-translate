@@ -14,7 +14,7 @@ class Job(Base):
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     document_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("documents.id"), nullable=False, index=True
+        String(36), ForeignKey("documents.id"), nullable=False, unique=True, index=True
     )
     org_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("organizations.id"), nullable=False, index=True

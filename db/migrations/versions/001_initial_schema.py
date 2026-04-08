@@ -38,7 +38,7 @@ def upgrade() -> None:
         sa.Column("uploaded_by", sa.String(36), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("filename", sa.Text, nullable=False),
         sa.Column("file_type", sa.String(10), nullable=False),
-        sa.Column("storage_key", sa.Text, nullable=False, server_default=""),
+        sa.Column("storage_key", sa.Text),
         sa.Column("source_lang", sa.String(10)),
         sa.Column("page_count", sa.Integer),
         sa.Column("status", sa.String(20), nullable=False, server_default="pending"),
@@ -49,7 +49,7 @@ def upgrade() -> None:
     op.create_table(
         "jobs",
         sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("document_id", sa.String(36), sa.ForeignKey("documents.id"), nullable=False),
+        sa.Column("document_id", sa.String(36), sa.ForeignKey("documents.id"), nullable=False, unique=True),
         sa.Column("org_id", sa.String(36), sa.ForeignKey("organizations.id"), nullable=False),
         sa.Column("status", sa.String(20), nullable=False, server_default="queued"),
         sa.Column("current_stage", sa.String(50)),
