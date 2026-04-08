@@ -13,7 +13,9 @@ alembic==1.13.3
 
 # Auth
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+bcrypt==5.0.0
+pydantic[email]
+slowapi==0.1.9
 
 # Storage
 boto3==1.35.0

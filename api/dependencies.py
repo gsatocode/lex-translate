@@ -14,6 +14,12 @@ from storage.r2 import R2Storage
 
 bearer_scheme = HTTPBearer()
 
+_UNAUTHORIZED = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Invalid or expired token",
+    headers={"WWW-Authenticate": "Bearer"},
+)
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
@@ -34,12 +40,12 @@ async def get_current_user(
         )
         user_id: str = payload.get("sub")
         if user_id is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+            raise _UNAUTHORIZED
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+        raise _UNAUTHORIZED
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+        raise _UNAUTHORIZED
     return user
