@@ -32,4 +32,4 @@ class Document(Base):
     organization: Mapped["Organization"] = relationship(
         "Organization", back_populates="documents"
     )
-    job: Mapped["Job"] = relationship("Job", back_populates="document", uselist=False)
+    job: Mapped["Job"] = relationship("Job", back_populates="document", uselist=False, cascade="all, delete-orphan")

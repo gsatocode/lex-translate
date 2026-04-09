@@ -46,11 +46,13 @@ async def client(db, mock_storage):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_storage] = override_storage
+    app.state.limiter.enabled = False
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
     app.dependency_overrides.clear()
+    app.state.limiter.enabled = True
 
 
 @pytest_asyncio.fixture

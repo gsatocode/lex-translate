@@ -6,18 +6,15 @@ from datetime import datetime, timezone, timedelta
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import jwt
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
 from api.dependencies import get_db
+from api.limiter import limiter
 from api.models.user import Organization, User
 from api.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
-
-limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter()
 
