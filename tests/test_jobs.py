@@ -1,0 +1,73 @@
+import pytest
+from unittest.mock import patch
+
+
+@pytest.mark.asyncio
+async def test_get_job_status_after_upload(auth_client, mock_storage):
+    with patch("api.routers.documents.process_document_task") as mock_task:
+        mock_task.delay = lambda job_id: None
+        upload_resp = await auth_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("doc.pdf", b"%PDF-1.4", "application/pdf")},
+        )
+    job_id = upload_resp.json()["job_id"]
+
+    resp = await auth_client.get(f"/api/v1/jobs/{job_id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == job_id
+    assert data["status"] == "queued"
+    assert data["progress"] == 0
+    assert data["current_stage"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_job_not_found_returns_404(auth_client):
+    resp = await auth_client.get("/api/v1/jobs/nonexistent-id")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_job_requires_authentication(client):
+    resp = await client.get("/api/v1/jobs/some-id")
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_cannot_access_other_orgs_job(auth_client, db, mock_storage):
+    """A user from org A cannot see org B's job."""
+    from httpx import AsyncClient, ASGITransport
+    from api.main import app
+    from api.dependencies import get_db, get_storage
+
+    async def override_db():
+        yield db
+
+    def override_storage():
+        return mock_storage
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_storage] = override_storage
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c2:
+        await c2.post(
+            "/api/v1/auth/register",
+            json={"org_name": "Other Firm", "email": "other@firm.com", "password": "password99"},
+        )
+        login_resp = await c2.post(
+            "/api/v1/auth/login",
+            json={"email": "other@firm.com", "password": "password99"},
+        )
+        c2.headers["Authorization"] = f"Bearer {login_resp.json()['access_token']}"
+
+        with patch("api.routers.documents.process_document_task") as mock_task:
+            mock_task.delay = lambda job_id: None
+            upload_resp = await c2.post(
+                "/api/v1/documents/upload",
+                files={"file": ("doc.pdf", b"%PDF", "application/pdf")},
+            )
+        other_job_id = upload_resp.json()["job_id"]
+
+    # auth_client (org A) tries to access org B's job
+    resp = await auth_client.get(f"/api/v1/jobs/{other_job_id}")
+    assert resp.status_code == 404
