@@ -23,16 +23,32 @@ class ValidationResult:
     issues: list[ValidationIssue] = field(default_factory=list)
 
 
+def _extract_date_component_numbers(dates: set[str]) -> set[str]:
+    """Extract individual digit groups from matched date strings.
+
+    Needed because _NUMBER_PATTERN matches digit groups like "15", "06", "2019"
+    while _DATE_PATTERN matches the full string "15/06/2019". A set difference
+    between the two would be a no-op. This function extracts the components so
+    they can be correctly excluded from the number check.
+    """
+    components: set[str] = set()
+    for d in dates:
+        components.update(re.findall(r"\d+", d))
+    return components
+
+
 def _check_chunk(original: str, translated: str, chunk_index: int) -> list[ValidationIssue]:
+    """Run all per-chunk validation checks and return any issues found."""
     issues: list[ValidationIssue] = []
 
     orig_numbers = set(_NUMBER_PATTERN.findall(original))
     trans_numbers = set(_NUMBER_PATTERN.findall(translated))
-    # Dates overlap with the number pattern — subtract dates so we don't double-flag
+    # Dates overlap with the number pattern — subtract date *components* so we
+    # don't flag individual digit groups (e.g. "06") that are part of a date.
     orig_dates = set(_DATE_PATTERN.findall(original))
     trans_dates = set(_DATE_PATTERN.findall(translated))
-    pure_orig_numbers = orig_numbers - orig_dates
-    pure_trans_numbers = trans_numbers - trans_dates
+    pure_orig_numbers = orig_numbers - _extract_date_component_numbers(orig_dates)
+    pure_trans_numbers = trans_numbers - _extract_date_component_numbers(trans_dates)
 
     for n in sorted(pure_orig_numbers - pure_trans_numbers):
         issues.append(ValidationIssue(

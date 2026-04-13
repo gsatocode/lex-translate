@@ -57,7 +57,21 @@ def _get_default_llm() -> LLMAdapter:
     raise ValueError(f"Unknown LLM_PROVIDER: {provider!r}")
 
 
+def _safe_error_message(exc: Exception) -> str:
+    """Return a user-safe error string. Full detail is in the logs.
+
+    LLM provider SDK exceptions include internal endpoint paths, request IDs,
+    and response bodies that must not reach API callers in a multi-tenant service.
+    """
+    from anthropic import APIError as AnthropicAPIError
+    from openai import APIError as OpenAIAPIError
+    if isinstance(exc, (AnthropicAPIError, OpenAIAPIError)):
+        return f"LLM provider error ({type(exc).__name__}). See job logs for details."
+    return str(exc)[:200]
+
+
 async def _set_job(db: AsyncSession, job: Job, **kwargs) -> None:
+    """Apply kwargs as attributes on job and commit the session."""
     for k, v in kwargs.items():
         setattr(job, k, v)
     await db.commit()
@@ -237,12 +251,19 @@ async def _run_pipeline(
 
         except Exception as exc:
             logger.exception("Pipeline failed for job %s", job_id)
-            await _set_job(
-                db, job,
-                status="failed",
-                error_message=str(exc)[:1000],
-                completed_at=datetime.now(timezone.utc),
-            )
+            try:
+                await _set_job(
+                    db, job,
+                    status="failed",
+                    error_message=_safe_error_message(exc),
+                    completed_at=datetime.now(timezone.utc),
+                )
+            except Exception:
+                logger.exception(
+                    "Pipeline error-handler could not persist failed status for job %s — "
+                    "job may be stuck in 'processing'",
+                    job_id,
+                )
 
 
 def run_pipeline(job_id: str) -> None:

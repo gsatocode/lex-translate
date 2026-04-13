@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +10,7 @@ from api.models.translation import TranslationChunk
 from api.models.user import User
 from api.schemas.job import ChunkResponse, JobResponse
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -84,10 +87,11 @@ async def retry_job(
     try:
         from worker.celery_app import process_document_task
         process_document_task.delay(job_id)
-    except Exception:
+    except Exception as exc:
+        logger.exception("Failed to enqueue retry for job %s", job_id)
         job.status = "failed"
         job.error_message = "Task queue unavailable"
         await db.commit()
-        raise HTTPException(status_code=503, detail="Processing queue unavailable")
+        raise HTTPException(status_code=503, detail="Processing queue unavailable") from exc
 
     return job

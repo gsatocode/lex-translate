@@ -159,6 +159,71 @@ async def test_retry_returns_404_for_unknown_job(auth_client):
     assert resp.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_retry_failed_job_resets_to_queued(auth_client, db, mock_storage):
+    """Happy path: a failed job is re-queued and all state fields are reset."""
+    from unittest.mock import patch
+    from sqlalchemy import update
+    from api.models.job import Job
+
+    with patch("api.routers.documents.process_document_task") as mock_task:
+        mock_task.delay = lambda job_id: None
+        upload = await auth_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("doc.pdf", _minimal_pdf(), "application/pdf")},
+        )
+    job_id = upload.json()["job_id"]
+
+    # Manually place the job in a failed state with stale fields
+    await db.execute(
+        update(Job).where(Job.id == job_id).values(
+            status="failed",
+            error_message="previous error",
+            progress=42,
+            current_stage="translate",
+        )
+    )
+    await db.commit()
+
+    with patch("worker.celery_app.process_document_task") as mock_task:
+        mock_task.delay = lambda job_id: None
+        resp = await auth_client.post(f"/api/v1/jobs/{job_id}/retry")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "queued"
+    assert data["progress"] == 0
+    assert data["error_message"] is None
+    assert data["current_stage"] is None
+
+
+@pytest.mark.asyncio
+async def test_retry_returns_503_when_queue_unavailable(auth_client, db, mock_storage):
+    """If Celery is unreachable, the job is rolled back to failed and 503 is returned."""
+    from unittest.mock import patch, MagicMock
+    from sqlalchemy import update
+    from api.models.job import Job
+
+    with patch("api.routers.documents.process_document_task") as mock_task:
+        mock_task.delay = lambda job_id: None
+        upload = await auth_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("doc.pdf", _minimal_pdf(), "application/pdf")},
+        )
+    job_id = upload.json()["job_id"]
+
+    await db.execute(
+        update(Job).where(Job.id == job_id).values(status="failed", error_message="boom")
+    )
+    await db.commit()
+
+    with patch("worker.celery_app.process_document_task") as mock_celery:
+        mock_celery.delay.side_effect = Exception("Redis is down")
+        resp = await auth_client.post(f"/api/v1/jobs/{job_id}/retry")
+
+    assert resp.status_code == 503
+
+
 def _minimal_pdf() -> bytes:
     import io
     from reportlab.pdfgen.canvas import Canvas
