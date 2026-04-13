@@ -15,3 +15,16 @@ class JobResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ChunkResponse(BaseModel):
+    id: str
+    chunk_index: int
+    original_text: str
+    translated_text: str
+    source_lang: str | None
+    tokens_used: int | None
+    llm_provider: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

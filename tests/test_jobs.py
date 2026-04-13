@@ -71,3 +71,99 @@ async def test_cannot_access_other_orgs_job(auth_client, db, mock_storage):
     # auth_client (org A) tries to access org B's job
     resp = await auth_client.get(f"/api/v1/jobs/{other_job_id}")
     assert resp.status_code == 404
+
+
+# --- chunks endpoint ---
+
+
+@pytest.mark.asyncio
+async def test_get_chunks_returns_empty_for_queued_job(auth_client, mock_storage):
+    with patch("api.routers.documents.process_document_task") as mock_task:
+        mock_task.delay = lambda job_id: None
+        upload = await auth_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("doc.pdf", _minimal_pdf(), "application/pdf")},
+        )
+    job_id = upload.json()["job_id"]
+    resp = await auth_client.get(f"/api/v1/jobs/{job_id}/chunks")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_get_chunks_returns_404_for_unknown_job(auth_client):
+    resp = await auth_client.get("/api/v1/jobs/nonexistent/chunks")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_chunks_forbidden_for_other_org(auth_client, client, db, mock_storage):
+    from httpx import AsyncClient, ASGITransport
+    from api.main import app
+    from api.dependencies import get_db, get_storage
+
+    async def override_db():
+        yield db
+
+    def override_storage():
+        return mock_storage
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_storage] = override_storage
+
+    # Register a second org
+    await client.post(
+        "/api/v1/auth/register",
+        json={"org_name": "Other Agency", "email": "other@example.com", "password": "password123"},
+    )
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "other@example.com", "password": "password123"},
+    )
+    other_token = resp.json()["access_token"]
+
+    with patch("api.routers.documents.process_document_task") as mock_task:
+        mock_task.delay = lambda job_id: None
+        upload = await auth_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("doc.pdf", _minimal_pdf(), "application/pdf")},
+        )
+    job_id = upload.json()["job_id"]
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c2:
+        c2.headers["Authorization"] = f"Bearer {other_token}"
+        resp = await c2.get(f"/api/v1/jobs/{job_id}/chunks")
+    assert resp.status_code == 404  # opaque 404, not 403
+
+
+# --- retry endpoint ---
+
+
+@pytest.mark.asyncio
+async def test_retry_queued_job_returns_400(auth_client, mock_storage):
+    with patch("api.routers.documents.process_document_task") as mock_task:
+        mock_task.delay = lambda job_id: None
+        upload = await auth_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("doc.pdf", _minimal_pdf(), "application/pdf")},
+        )
+    job_id = upload.json()["job_id"]
+    resp = await auth_client.post(f"/api/v1/jobs/{job_id}/retry")
+    # queued job is not failed — retry should be rejected
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_retry_returns_404_for_unknown_job(auth_client):
+    resp = await auth_client.post("/api/v1/jobs/nonexistent/retry")
+    assert resp.status_code == 404
+
+
+def _minimal_pdf() -> bytes:
+    import io
+    from reportlab.pdfgen.canvas import Canvas
+    buf = io.BytesIO()
+    c = Canvas(buf)
+    c.drawString(72, 720, "Minimal test PDF content.")
+    c.save()
+    return buf.getvalue()
