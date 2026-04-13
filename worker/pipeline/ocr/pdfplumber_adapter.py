@@ -1,0 +1,17 @@
+import asyncio
+import io
+
+import pdfplumber
+
+from worker.pipeline.ocr.base import OCRAdapter, OCRResult
+
+
+class PDFPlumberAdapter(OCRAdapter):
+    async def extract(self, data: bytes) -> OCRResult:
+        return await asyncio.to_thread(self._extract_sync, data)
+
+    def _extract_sync(self, data: bytes) -> OCRResult:
+        with pdfplumber.open(io.BytesIO(data)) as pdf:
+            pages = [page.extract_text() or "" for page in pdf.pages]
+            text = "\n\n".join(p for p in pages if p.strip())
+            return OCRResult(text=text, page_count=len(pdf.pages))
