@@ -18,10 +18,19 @@ class Settings(BaseSettings):
     r2_access_key: str = Field(default="")
     r2_secret_key: str = Field(default="")
     r2_bucket: str = Field(default="lex-translate")
+    cors_allow_origins: str = Field(default="http://localhost:3000")
 
     @property
     def r2_endpoint(self) -> str:
         return f"https://{self.r2_account_id}.r2.cloudflarestorage.com"
+
+    @property
+    def cors_allow_origins_list(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.cors_allow_origins.split(",")
+            if origin.strip()
+        ]
 
 
 settings = Settings()

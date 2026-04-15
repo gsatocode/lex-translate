@@ -2,7 +2,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies import get_current_user, get_db, get_storage
@@ -71,7 +71,7 @@ async def upload_document(
         filename=safe_name,
         file_type=file_type,
         storage_key=storage_key,
-        status="processing",
+        status="queued",
     )
     db.add(doc)
 
@@ -87,17 +87,22 @@ async def upload_document(
     try:
         await storage.upload(storage_key, data, file.content_type)
     except StorageError:
+        await db.execute(delete(Job).where(Job.id == job_id))
+        await db.execute(delete(Document).where(Document.id == doc_id))
+        await db.commit()
         raise HTTPException(status_code=502, detail="File storage unavailable")
 
     try:
         process_document_task.delay(job_id)
     except Exception:
         # Task queue unavailable — mark job failed so it doesn't silently hang
-        from sqlalchemy import update
         await db.execute(
             update(Job).where(Job.id == job_id).values(
                 status="failed", error_message="Task queue unavailable"
             )
+        )
+        await db.execute(
+            update(Document).where(Document.id == doc_id).values(status="failed")
         )
         await db.commit()
         raise HTTPException(status_code=503, detail="Processing queue unavailable")

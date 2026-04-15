@@ -1,4 +1,7 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
+const SERVER_API_BASE = process.env.API_BASE ?? "http://localhost:8000/api/v1";
+const CLIENT_API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/api/v1";
+
+const API_BASE = typeof window === "undefined" ? SERVER_API_BASE : CLIENT_API_BASE;
 
 export class ApiError extends Error {
   constructor(
@@ -21,10 +24,10 @@ async function request<T>(
   };
 
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
 
-  if (!(init.body instanceof FormData)) {
+  if (!(init.body instanceof FormData) && init.body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
 
@@ -40,16 +43,17 @@ async function request<T>(
       const err = (await res.json()) as { detail?: string };
       message = err.detail ?? message;
     } catch {
-      // ignore parse error
+      // Ignore parse failure and fall back to the status code.
     }
     throw new ApiError(res.status, message);
   }
 
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   return res.json() as Promise<T>;
 }
-
-// ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export interface RegisterPayload {
   org_name: string;
@@ -69,7 +73,7 @@ export interface TokenResponse {
 
 export const auth = {
   register: (data: RegisterPayload) =>
-    request<{ id: string; email: string }>("/auth/register", {
+    request<TokenResponse>("/auth/register", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -80,14 +84,13 @@ export const auth = {
     }),
 };
 
-// ─── Documents ────────────────────────────────────────────────────────────────
-
 export interface Document {
   id: string;
   filename: string;
-  status: string;
+  file_type: string;
+  status: "queued" | "processing" | "completed" | "failed" | "pending";
+  source_lang: string | null;
   created_at: string;
-  file_size?: number;
 }
 
 export interface UploadResponse {
@@ -108,49 +111,62 @@ export const documents = {
     request<void>(`/documents/${id}`, { method: "DELETE", token }),
 };
 
-// ─── Jobs ─────────────────────────────────────────────────────────────────────
-
 export interface Job {
   id: string;
   document_id: string;
-  status: "pending" | "processing" | "completed" | "failed";
-  current_stage?: string;
-  progress?: number;
-  error_message?: string;
+  status: "queued" | "processing" | "completed" | "failed" | "pending";
+  current_stage: string | null;
+  progress: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
   created_at: string;
-  updated_at?: string;
 }
 
-export interface Chunk {
+export interface JobChunk {
   id: string;
   chunk_index: number;
-  status: string;
-  source_text?: string;
+  original_text: string;
+  translated_text: string;
+  source_lang: string | null;
+  tokens_used: number | null;
+  llm_provider: string | null;
+  created_at: string;
 }
 
 export const jobs = {
   get: (token: string, id: string) => request<Job>(`/jobs/${id}`, { token }),
-  chunks: (token: string, id: string) => request<Chunk[]>(`/jobs/${id}/chunks`, { token }),
+  chunks: (token: string, id: string) => request<JobChunk[]>(`/jobs/${id}/chunks`, { token }),
 };
-
-// ─── Translations ─────────────────────────────────────────────────────────────
 
 export interface TranslationChunk {
   chunk_index: number;
-  source_text: string;
+  original_text: string;
   translated_text: string;
+  source_lang: string | null;
+  tokens_used: number | null;
+  llm_provider: string | null;
+}
+
+export interface TranslationResponse {
+  job_id: string;
+  status: Job["status"];
+  chunks: TranslationChunk[];
 }
 
 export interface SideBySideEntry {
+  chunk_index: number;
   original_text: string;
   translated_text: string;
 }
 
 export interface SideBySideResponse {
+  job_id: string;
   entries: SideBySideEntry[];
 }
 
 export interface DownloadResponse {
+  job_id: string;
   url: string;
   expires_in: number;
 }
@@ -158,17 +174,20 @@ export interface DownloadResponse {
 export interface ValidationIssue {
   type: string;
   message: string;
-  severity: "error" | "warning" | "info";
+  severity: "error" | "warning" | string | null;
+  chunk_index: number | null;
 }
 
 export interface ValidationResponse {
+  job_id: string;
   passed: boolean;
   issues: ValidationIssue[];
+  created_at: string;
 }
 
 export const translations = {
   get: (token: string, jobId: string) =>
-    request<{ chunks: TranslationChunk[] }>(`/translations/${jobId}`, { token }),
+    request<TranslationResponse>(`/translations/${jobId}`, { token }),
   sideBySide: (token: string, jobId: string) =>
     request<SideBySideResponse>(`/translations/${jobId}/sidebyside`, { token }),
   download: (token: string, jobId: string, format: "pdf" | "docx") =>
@@ -177,13 +196,11 @@ export const translations = {
     request<ValidationResponse>(`/translations/${jobId}/validation`, { token }),
 };
 
-// ─── Glossary ─────────────────────────────────────────────────────────────────
-
 export interface GlossaryTerm {
   id: string;
   source_term: string;
   target_term: string;
-  domain?: string;
+  domain: string;
   created_at: string;
 }
 
@@ -195,6 +212,11 @@ export interface CreateTermPayload {
 
 export interface ImportTermsPayload {
   terms: CreateTermPayload[];
+}
+
+export interface GlossaryImportResponse {
+  imported: number;
+  skipped: number;
 }
 
 export const glossary = {
@@ -210,14 +232,12 @@ export const glossary = {
   delete: (token: string, id: string) =>
     request<void>(`/glossary/${id}`, { method: "DELETE", token }),
   import: (token: string, data: ImportTermsPayload) =>
-    request<GlossaryTerm[]>("/glossary/import", {
+    request<GlossaryImportResponse>("/glossary/import", {
       method: "POST",
       body: JSON.stringify(data),
       token,
     }),
 };
-
-// ─── Usage ────────────────────────────────────────────────────────────────────
 
 export interface UsageSummary {
   total_jobs: number;
@@ -228,11 +248,18 @@ export interface UsageSummary {
 
 export interface UsageJob {
   job_id: string;
-  total_tokens: number;
-  llm_provider: string;
+  document_id: string;
+  status: Job["status"];
+  tokens_used: number;
+  estimated_cost_usd: number;
+  created_at: string;
+}
+
+export interface UsageJobResponse {
+  jobs: UsageJob[];
 }
 
 export const usage = {
   summary: (token: string) => request<UsageSummary>("/usage", { token }),
-  jobs: (token: string) => request<{ jobs: UsageJob[] }>("/usage/jobs", { token }),
+  jobs: (token: string) => request<UsageJobResponse>("/usage/jobs", { token }),
 };

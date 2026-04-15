@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Lex Translate",
-  description: "Professional legal document translation",
+  description: "AI-assisted legal document translation workspace",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,7 @@
 import json
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +34,15 @@ async def _get_job_or_404(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+def _normalize_validation_issue(payload: dict) -> ValidationIssue:
+    return ValidationIssue(
+        type=payload.get("type", "validation_issue"),
+        message=payload.get("message") or payload.get("description") or "Validation issue",
+        severity=payload.get("severity"),
+        chunk_index=payload.get("chunk_index"),
+    )
 
 
 @router.get("/{job_id}", response_model=TranslationResponse)
@@ -75,8 +85,8 @@ async def get_side_by_side(
     entries = [
         SideBySideEntry(
             chunk_index=c.chunk_index,
-            original=c.original_text,
-            translated=c.translated_text,
+            original_text=c.original_text,
+            translated_text=c.translated_text,
         )
         for c in chunks
     ]
@@ -89,15 +99,22 @@ async def download_translation(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     storage: StorageAdapter = Depends(get_storage),
+    format: Literal["pdf", "docx"] = Query(default="pdf"),
 ):
     await _get_job_or_404(job_id, current_user.org_id, db)
 
     result = await db.execute(
-        select(OutputDocument).where(OutputDocument.job_id == job_id)
+        select(OutputDocument).where(
+            OutputDocument.job_id == job_id,
+            OutputDocument.output_format == format,
+        )
     )
     output_doc = result.scalar_one_or_none()
     if not output_doc:
-        raise HTTPException(status_code=404, detail="Output document not ready")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Output document not ready for format '{format}'",
+        )
 
     url = storage.presigned_url(output_doc.storage_key, expires_in=3600)
     return DownloadResponse(job_id=job_id, url=url, expires_in=3600)
@@ -118,7 +135,7 @@ async def get_validation_report(
     if not report:
         raise HTTPException(status_code=404, detail="Validation report not found")
 
-    issues = [ValidationIssue(**i) for i in json.loads(report.issues)]
+    issues = [_normalize_validation_issue(i) for i in json.loads(report.issues)]
     return ValidationReportResponse(
         job_id=job_id,
         passed=report.passed,

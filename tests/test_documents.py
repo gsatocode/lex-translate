@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from api.models.document import Document
+from api.models.job import Job
 from storage.base import StorageError
 
 
@@ -110,11 +112,35 @@ async def test_upload_returns_503_when_task_queue_unavailable(auth_client, mock_
 
     # Job must be marked failed — not silently stuck as "queued"
     from sqlalchemy import select
-    from api.models.job import Job
     result = await db.execute(select(Job))
     jobs = result.scalars().all()
     assert len(jobs) == 1
     assert jobs[0].status == "failed"
+
+    result = await db.execute(select(Document))
+    docs = result.scalars().all()
+    assert len(docs) == 1
+    assert docs[0].status == "failed"
+
+
+@pytest.mark.asyncio
+async def test_upload_storage_failure_rolls_back_document_and_job(auth_client, mock_storage, db):
+    mock_storage.upload = AsyncMock(side_effect=StorageError("R2 unavailable"))
+
+    with patch("api.routers.documents.process_document_task"):
+        resp = await auth_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("doc.pdf", b"%PDF-1.4", "application/pdf")},
+        )
+
+    assert resp.status_code == 502
+
+    from sqlalchemy import select
+
+    docs = (await db.execute(select(Document))).scalars().all()
+    jobs = (await db.execute(select(Job))).scalars().all()
+    assert docs == []
+    assert jobs == []
 
 
 # ── CRITICAL: list pagination ─────────────────────────────────────────────────

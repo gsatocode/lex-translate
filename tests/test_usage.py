@@ -51,6 +51,7 @@ async def test_usage_summary_no_jobs(auth_client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["total_jobs"] == 0
+    assert data["completed_jobs"] == 0
     assert data["total_tokens"] == 0
     assert data["estimated_cost_usd"] == 0.0
 
@@ -64,6 +65,7 @@ async def test_usage_summary_with_tokens(auth_client, db, mock_storage):
     assert resp.status_code == 200
     data = resp.json()
     assert data["total_jobs"] == 1
+    assert data["completed_jobs"] == 0
     assert data["total_tokens"] == 1000
     # $3/1M tokens * 1000 = 0.003
     assert data["estimated_cost_usd"] == 0.003
@@ -95,6 +97,7 @@ async def test_job_usage_with_data(auth_client, db, mock_storage):
     jobs = resp.json()["jobs"]
     assert len(jobs) == 1
     assert jobs[0]["job_id"] == job_id
+    assert jobs[0]["status"] == "queued"
     assert jobs[0]["tokens_used"] == 3000
     assert jobs[0]["estimated_cost_usd"] == 0.009
 

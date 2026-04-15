@@ -95,8 +95,8 @@ async def test_side_by_side_returns_entries(auth_client, db, mock_storage):
     data = resp.json()
     assert data["job_id"] == job_id
     assert len(data["entries"]) == 2
-    assert data["entries"][0]["original"] == "original 0"
-    assert data["entries"][0]["translated"] == "translated 0"
+    assert data["entries"][0]["original_text"] == "original 0"
+    assert data["entries"][0]["translated_text"] == "translated 0"
 
 
 @pytest.mark.asyncio
@@ -111,18 +111,26 @@ async def test_side_by_side_not_found(auth_client):
 @pytest.mark.asyncio
 async def test_download_returns_presigned_url(auth_client, db, mock_storage):
     job_id = await _create_job(auth_client, mock_storage)
-    output = OutputDocument(
-        job_id=job_id, output_format="pdf", storage_key=f"org/doc/output.pdf"
-    )
-    db.add(output)
+    db.add(OutputDocument(job_id=job_id, output_format="pdf", storage_key="org/doc/output.pdf"))
+    db.add(OutputDocument(job_id=job_id, output_format="docx", storage_key="org/doc/output.docx"))
     await db.commit()
 
-    resp = await auth_client.get(f"/api/v1/translations/{job_id}/download")
+    resp = await auth_client.get(f"/api/v1/translations/{job_id}/download?format=docx")
     assert resp.status_code == 200
     data = resp.json()
     assert data["job_id"] == job_id
     assert data["url"].startswith("https://")
     assert data["expires_in"] == 3600
+
+
+@pytest.mark.asyncio
+async def test_download_missing_requested_format_returns_404(auth_client, db, mock_storage):
+    job_id = await _create_job(auth_client, mock_storage)
+    db.add(OutputDocument(job_id=job_id, output_format="pdf", storage_key="org/doc/output.pdf"))
+    await db.commit()
+
+    resp = await auth_client.get(f"/api/v1/translations/{job_id}/download?format=docx")
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -144,7 +152,7 @@ async def test_download_unknown_job_returns_404(auth_client):
 @pytest.mark.asyncio
 async def test_validation_report_returns_issues(auth_client, db, mock_storage):
     job_id = await _create_job(auth_client, mock_storage)
-    issues = [{"type": "spelling", "message": "Misspelled word: teh"}]
+    issues = [{"type": "spelling", "description": "Misspelled word: teh", "severity": "warning", "chunk_index": 1}]
     report = ValidationReport(
         job_id=job_id, passed=False, issues=json.dumps(issues)
     )
@@ -158,6 +166,9 @@ async def test_validation_report_returns_issues(auth_client, db, mock_storage):
     assert data["passed"] is False
     assert len(data["issues"]) == 1
     assert data["issues"][0]["type"] == "spelling"
+    assert data["issues"][0]["message"] == "Misspelled word: teh"
+    assert data["issues"][0]["severity"] == "warning"
+    assert data["issues"][0]["chunk_index"] == 1
 
 
 @pytest.mark.asyncio

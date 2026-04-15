@@ -108,10 +108,13 @@ async def _run_pipeline(
         result = await db.execute(select(Document).where(Document.id == job.document_id))
         doc = result.scalar_one_or_none()
         if not doc or not doc.storage_key:
+            if doc:
+                doc.status = "failed"
             await _set_job(db, job, status="failed", error_message="Document record missing")
             return
 
         try:
+            doc.status = "processing"
             await _set_job(
                 db, job,
                 status="processing",
@@ -124,6 +127,8 @@ async def _run_pipeline(
             file_data = await storage.download(doc.storage_key)
             ocr_adapter = _resolve_ocr_adapter(doc.file_type)
             ocr_result = await ocr_adapter.extract(file_data)
+            if not ocr_result.text.strip():
+                raise RuntimeError("No extractable text found in document")
 
             doc.page_count = ocr_result.page_count
             await _set_job(db, job, current_stage="ocr", progress=_STAGE_PROGRESS["ocr"])
@@ -240,6 +245,7 @@ async def _run_pipeline(
             await db.commit()
 
             # -- Done --
+            doc.status = "completed"
             await _set_job(
                 db, job,
                 status="completed",
@@ -252,6 +258,7 @@ async def _run_pipeline(
         except Exception as exc:
             logger.exception("Pipeline failed for job %s", job_id)
             try:
+                doc.status = "failed"
                 await _set_job(
                     db, job,
                     status="failed",

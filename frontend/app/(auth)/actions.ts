@@ -50,8 +50,7 @@ export async function registerAction(
   }
 
   try {
-    await auth.register({ org_name, email, password });
-    const { access_token } = await auth.login({ email, password });
+    const { access_token } = await auth.register({ org_name, email, password });
     const store = await cookies();
     store.set(TOKEN_COOKIE, access_token, {
       httpOnly: true,

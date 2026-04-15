@@ -24,8 +24,8 @@ class TranslationResponse(BaseModel):
 
 class SideBySideEntry(BaseModel):
     chunk_index: int
-    original: str
-    translated: str
+    original_text: str
+    translated_text: str
 
 
 class SideBySideResponse(BaseModel):
@@ -42,6 +42,8 @@ class DownloadResponse(BaseModel):
 class ValidationIssue(BaseModel):
     type: str
     message: str
+    severity: str | None = None
+    chunk_index: int | None = None
 
 
 class ValidationReportResponse(BaseModel):
