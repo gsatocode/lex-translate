@@ -5,7 +5,7 @@ from api.config import settings
 from worker.pipeline.translation.base import LLMAdapter, TranslationResult
 from worker.pipeline.translation.prompts import SYSTEM_PROMPT, build_user_prompt
 
-_MODEL = "gpt-4o"
+_MODEL = "gpt-4.1"
 _MAX_TOKENS = 4096
 _LLM_TIMEOUT = httpx.Timeout(connect=5.0, read=120.0, write=10.0, pool=5.0)
 
