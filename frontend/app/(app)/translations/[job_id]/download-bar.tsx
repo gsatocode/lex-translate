@@ -15,39 +15,51 @@ export function DownloadBar({ jobId, token }: Props) {
   async function handleDownload(format: "pdf" | "docx") {
     setError(null);
     setLoading(format);
-
     try {
       const { url } = await translations.download(token, jobId, format);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Download failed.");
-      }
+      setError(err instanceof ApiError ? err.message : "Download failed.");
     } finally {
       setLoading(null);
     }
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-3">
-      {error && (
-        <span className="text-sm" style={{ color: "hsl(var(--destructive))" }}>
-          {error}
-        </span>
-      )}
-      {(["pdf", "docx"] as const).map((format) => (
-        <button
-          key={format}
-          type="button"
-          disabled={loading !== null}
-          onClick={() => handleDownload(format)}
-          className={format === "pdf" ? "primary-button disabled:opacity-60" : "secondary-button disabled:opacity-60"}
+    <div
+      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4"
+      style={{ background: "#f9fafb", borderColor: "var(--border)" }}
+    >
+      <div>
+        <p
+          className="text-xs font-medium uppercase tracking-wide"
+          style={{ color: "var(--text-secondary)" }}
         >
-          {loading === format ? "Preparing..." : `Download ${format.toUpperCase()}`}
-        </button>
-      ))}
+          Download Output
+        </p>
+        {error && (
+          <p className="mt-1 text-xs" style={{ color: "var(--destructive)" }}>
+            {error}
+          </p>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {(["pdf", "docx"] as const).map((format) => (
+          <button
+            key={format}
+            type="button"
+            disabled={loading !== null}
+            onClick={() => handleDownload(format)}
+            className={
+              format === "pdf"
+                ? "primary-button disabled:opacity-60"
+                : "secondary-button disabled:opacity-60"
+            }
+          >
+            {loading === format ? "Preparing..." : `Download ${format.toUpperCase()}`}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

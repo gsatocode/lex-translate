@@ -11,11 +11,7 @@ interface Props {
 
 export function GlossaryTable({ terms, token, onRefresh }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<{
-    source_term: string;
-    target_term: string;
-    domain: string;
-  }>({
+  const [editValues, setEditValues] = useState({
     source_term: "",
     target_term: "",
     domain: "",
@@ -66,125 +62,110 @@ export function GlossaryTable({ terms, token, onRefresh }: Props) {
   }
 
   return (
-    <div>
+    <section className="space-y-3">
+      <div>
+        <p
+          className="text-xs font-medium uppercase tracking-wide"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Terms
+        </p>
+        <h2 className="mt-1.5 text-xl">Glossary Library</h2>
+      </div>
+
       {error && (
         <div
-          className="mb-4 rounded-md px-4 py-3 text-sm"
+          className="rounded border-l-4 px-4 py-3 text-sm"
           style={{
-            background: "hsl(var(--destructive) / 0.1)",
-            color: "hsl(var(--destructive-foreground))",
-            border: "1px solid hsl(var(--destructive) / 0.3)",
+            borderLeftColor: "var(--destructive)",
+            background: "#fef2f2",
+            color: "var(--destructive)",
           }}
         >
           {error}
         </div>
       )}
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{ border: "1px solid hsl(var(--border))" }}
-      >
+
+      <div className="table-shell">
         <table className="w-full text-sm">
           <thead>
-            <tr style={{ background: "hsl(var(--muted))" }}>
+            <tr>
               {["Source Term", "Target Term", "Domain", "Actions"].map((h) => (
-                <th
-                  key={h}
-                  className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider"
-                  style={{ color: "hsl(var(--muted-foreground))" }}
-                >
-                  {h}
-                </th>
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody style={{ background: "hsl(var(--card))" }}>
+          <tbody>
             {terms.length === 0 ? (
               <tr>
                 <td
                   colSpan={4}
-                  className="px-4 py-8 text-center"
-                  style={{ color: "hsl(var(--muted-foreground))" }}
+                  className="py-10 text-center text-sm"
+                  style={{ color: "var(--text-secondary)" }}
                 >
                   No terms yet.
                 </td>
               </tr>
             ) : (
               terms.map((term) => (
-                <tr
-                  key={term.id}
-                  className="border-t"
-                  style={{ borderColor: "hsl(var(--border))" }}
-                >
-                  <td className="px-4 py-3">
+                <tr key={term.id}>
+                  <td>
                     {editingId === term.id ? (
                       <input
                         value={editValues.source_term}
                         onChange={(e) =>
                           setEditValues((v) => ({ ...v, source_term: e.target.value }))
                         }
-                        className="w-full rounded px-2 py-1 text-sm outline-none"
-                        style={{
-                          background: "hsl(var(--input))",
-                          color: "hsl(var(--foreground))",
-                          border: "1px solid hsl(var(--border))",
-                        }}
+                        className="field"
                       />
                     ) : (
-                      <span style={{ color: "hsl(var(--foreground))" }}>{term.source_term}</span>
+                      term.source_term
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td>
                     {editingId === term.id ? (
                       <input
                         value={editValues.target_term}
                         onChange={(e) =>
                           setEditValues((v) => ({ ...v, target_term: e.target.value }))
                         }
-                        className="w-full rounded px-2 py-1 text-sm outline-none"
-                        style={{
-                          background: "hsl(var(--input))",
-                          color: "hsl(var(--foreground))",
-                          border: "1px solid hsl(var(--border))",
-                        }}
+                        className="field"
                       />
                     ) : (
-                      <span style={{ color: "hsl(var(--foreground))" }}>{term.target_term}</span>
+                      term.target_term
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td style={{ color: "var(--text-secondary)" }}>
                     {editingId === term.id ? (
                       <input
                         value={editValues.domain}
-                        onChange={(e) => setEditValues((v) => ({ ...v, domain: e.target.value }))}
-                        className="w-full rounded px-2 py-1 text-sm outline-none"
+                        onChange={(e) =>
+                          setEditValues((v) => ({ ...v, domain: e.target.value }))
+                        }
+                        className="field"
                         placeholder="Optional"
-                        style={{
-                          background: "hsl(var(--input))",
-                          color: "hsl(var(--foreground))",
-                          border: "1px solid hsl(var(--border))",
-                        }}
                       />
                     ) : (
-                      <span style={{ color: "hsl(var(--muted-foreground))" }}>
-                        {term.domain ?? "—"}
-                      </span>
+                      term.domain ?? "—"
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td>
                     {editingId === term.id ? (
                       <div className="flex gap-3">
                         <button
+                          type="button"
                           onClick={saveEdit}
                           disabled={isPending}
                           className="text-xs font-medium disabled:opacity-50"
-                          style={{ color: "hsl(var(--primary))" }}
+                          style={{ color: "var(--accent)" }}
                         >
                           Save
                         </button>
                         <button
+                          type="button"
                           onClick={cancelEdit}
                           className="text-xs"
-                          style={{ color: "hsl(var(--muted-foreground))" }}
+                          style={{ color: "var(--text-secondary)" }}
                         >
                           Cancel
                         </button>
@@ -192,17 +173,19 @@ export function GlossaryTable({ terms, token, onRefresh }: Props) {
                     ) : (
                       <div className="flex gap-3">
                         <button
+                          type="button"
                           onClick={() => startEdit(term)}
                           className="text-xs"
-                          style={{ color: "hsl(var(--muted-foreground))" }}
+                          style={{ color: "var(--text-secondary)" }}
                         >
                           Edit
                         </button>
                         <button
+                          type="button"
                           onClick={() => deleteTerm(term.id)}
                           disabled={isPending}
-                          className="text-xs hover:text-red-400 transition-colors disabled:opacity-50"
-                          style={{ color: "hsl(var(--muted-foreground))" }}
+                          className="text-xs disabled:opacity-50"
+                          style={{ color: "var(--destructive)" }}
                         >
                           Delete
                         </button>
@@ -215,6 +198,6 @@ export function GlossaryTable({ terms, token, onRefresh }: Props) {
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   );
 }

@@ -8,7 +8,7 @@ interface Props {
   token: string;
 }
 
-const ACCEPT = ".pdf,.docx,.jpg,.jpeg,.png";
+const ACCEPT = ".pdf,.docx,.jpg,.jpeg,.png,.tif,.tiff";
 
 export function UploadForm({ token }: Props) {
   const router = useRouter();
@@ -26,7 +26,7 @@ export function UploadForm({ token }: Props) {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedFile) {
-      setError("Select a PDF, DOCX, JPG, or PNG file to continue.");
+      setError("Select a PDF, DOCX, JPG, PNG, or TIFF file to continue.");
       return;
     }
 
@@ -49,14 +49,14 @@ export function UploadForm({ token }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
         <div
-          className="rounded-2xl px-4 py-3 text-sm"
+          className="rounded border-l-4 px-4 py-3 text-sm"
           style={{
-            background: "hsl(var(--destructive) / 0.1)",
-            color: "hsl(var(--destructive-foreground))",
-            border: "1px solid hsl(var(--destructive) / 0.3)",
+            borderLeftColor: "var(--destructive)",
+            background: "#fef2f2",
+            color: "var(--destructive)",
           }}
         >
           {error}
@@ -68,23 +68,22 @@ export function UploadForm({ token }: Props) {
         className="dropzone block w-full p-6 text-left"
         data-active={dragActive}
         onClick={() => inputRef.current?.click()}
-        onDragEnter={(event) => {
-          event.preventDefault();
+        onDragEnter={(e) => {
+          e.preventDefault();
           setDragActive(true);
         }}
-        onDragOver={(event) => {
-          event.preventDefault();
+        onDragOver={(e) => {
+          e.preventDefault();
           setDragActive(true);
         }}
-        onDragLeave={(event) => {
-          event.preventDefault();
+        onDragLeave={(e) => {
+          e.preventDefault();
           setDragActive(false);
         }}
-        onDrop={(event) => {
-          event.preventDefault();
+        onDrop={(e) => {
+          e.preventDefault();
           setDragActive(false);
-          const file = event.dataTransfer.files?.[0] ?? null;
-          handleFile(file);
+          handleFile(e.dataTransfer.files?.[0] ?? null);
         }}
       >
         <input
@@ -92,38 +91,42 @@ export function UploadForm({ token }: Props) {
           type="file"
           accept={ACCEPT}
           className="hidden"
-          onChange={(event) => handleFile(event.target.files?.[0] ?? null)}
+          onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
         />
 
-        <p className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: "hsl(var(--muted-foreground))" }}>
-          Drop Zone
+        <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+          Drop a file here or click to browse
         </p>
-        <h3 className="mt-3 text-2xl">Select a source document</h3>
-        <p className="mt-2 text-sm leading-6" style={{ color: "hsl(var(--muted-foreground))" }}>
-          Drag and drop a file here or click to browse. The backend validates the file type before it enters the queue.
+        <p className="mt-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+          Accepts PDF, DOCX, JPG, PNG, TIFF
         </p>
-
-        <div className="mt-6 flex flex-wrap gap-2">
-          {["PDF", "DOCX", "JPG", "PNG"].map((label) => (
-            <span
-              key={label}
-              className="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]"
-              style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
-            >
-              {label}
-            </span>
-          ))}
-        </div>
       </button>
 
-      <div className="app-panel-muted p-4">
-        <p className="text-xs uppercase tracking-[0.18em]" style={{ color: "hsl(var(--muted-foreground))" }}>
-          Selected File
+      <div
+        className="flex items-center justify-between rounded border px-4 py-3"
+        style={{ borderColor: "var(--border)", background: "#f9fafb" }}
+      >
+        <div>
+          <p
+            className="text-xs font-medium uppercase tracking-wide"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Selected file
+          </p>
+          <p className="mt-1 text-sm font-medium">
+            {selectedFile?.name ?? "Nothing selected"}
+          </p>
+        </div>
+        <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+          {selectedFile ? "Ready" : "Waiting"}
         </p>
-        <p className="mt-2 text-sm font-semibold">{selectedFile?.name ?? "Nothing selected yet"}</p>
       </div>
 
-      <button type="submit" disabled={isPending} className="primary-button w-full disabled:opacity-60">
+      <button
+        type="submit"
+        disabled={isPending}
+        className="primary-button w-full disabled:opacity-60"
+      >
         {isPending ? "Uploading..." : "Upload And Translate"}
       </button>
     </form>

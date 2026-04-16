@@ -7,60 +7,92 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   await requireToken();
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[1600px] gap-6 px-4 py-4 md:px-6">
-      <aside className="hidden w-[320px] shrink-0 lg:block">
-        <div className="app-panel sticky top-4 flex min-h-[calc(100vh-2rem)] flex-col p-5">
-          <div className="mb-6">
-            <span className="eyebrow">Legal Translation OS</span>
-            <Link href="/dashboard" className="mt-4 block">
-              <h1 className="text-3xl leading-none" style={{ color: "hsl(var(--foreground))" }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--background)" }}>
+      {/* ── Fixed sidebar (desktop) ── */}
+      <aside
+        className="fixed left-0 top-0 z-10 hidden h-screen w-[280px] flex-col overflow-hidden border-r lg:flex"
+        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+      >
+        {/* Zone 1: Brand */}
+        <div className="p-4" style={{ borderBottom: "1px solid var(--border)" }}>
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <div
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs font-semibold"
+              style={{
+                borderColor: "var(--border)",
+                color: "var(--accent)",
+                background: "var(--accent-surface)",
+              }}
+            >
+              LT
+            </div>
+            <div className="min-w-0">
+              <p
+                className="truncate text-base leading-tight"
+                style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
+              >
                 Lex Translate
-              </h1>
-              <p className="mt-3 text-sm leading-6" style={{ color: "hsl(var(--muted-foreground))" }}>
-                Intake, translate, validate, and deliver court-ready output without losing context.
               </p>
-            </Link>
-          </div>
+              <p
+                className="mt-0.5 text-[10px] uppercase tracking-wider"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Legal Workspace
+              </p>
+            </div>
+          </Link>
+        </div>
 
+        {/* Zone 2: Navigation */}
+        <nav className="flex-1 overflow-y-auto p-3">
           <ShellNav />
+        </nav>
 
-          <div className="app-panel-muted mt-auto p-4">
-            <p className="text-xs uppercase tracking-[0.18em]" style={{ color: "hsl(var(--muted-foreground))" }}>
-              Workflow
-            </p>
-            <p className="mt-2 text-sm leading-6" style={{ color: "hsl(var(--foreground))" }}>
-              Upload source files, track the pipeline live, inspect the side-by-side output, then
-              download the final PDF or DOCX.
-            </p>
-
-            <form action={logoutAction} className="mt-4">
-              <button type="submit" className="secondary-button w-full">
-                Sign Out
-              </button>
-            </form>
-          </div>
+        {/* Zone 3: Footer */}
+        <div className="p-3" style={{ borderTop: "1px solid var(--border)" }}>
+          <form action={logoutAction}>
+            <button type="submit" className="secondary-button w-full">
+              Sign Out
+            </button>
+          </form>
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 py-2">
-        <div className="app-panel mb-6 p-4 lg:hidden">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <span className="eyebrow">Lex Translate</span>
-              <p className="mt-3 text-sm leading-6" style={{ color: "hsl(var(--muted-foreground))" }}>
-                Translation workflow, validation, and output delivery in one place.
-              </p>
-            </div>
-            <form action={logoutAction}>
-              <button type="submit" className="secondary-button">
-                Sign Out
-              </button>
-            </form>
+      {/* ── Mobile top bar ── */}
+      <div
+        className="fixed left-0 right-0 top-0 z-10 flex h-14 items-center justify-between border-b px-4 lg:hidden"
+        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+      >
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <div
+            className="flex h-7 w-7 items-center justify-center rounded border text-xs font-semibold"
+            style={{ borderColor: "var(--border)", color: "var(--accent)" }}
+          >
+            LT
           </div>
+          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            Lex Translate
+          </span>
+        </Link>
+        <form action={logoutAction}>
+          <button type="submit" className="secondary-button">
+            Sign Out
+          </button>
+        </form>
+      </div>
 
-          <div className="mt-4">
-            <ShellNav />
-          </div>
+      {/* ── Main scrollable content ── */}
+      <main className="flex-1 overflow-y-auto lg:ml-[280px]">
+        {/* Mobile nav below top bar */}
+        <div
+          className="border-b p-3 lg:hidden"
+          style={{
+            background: "var(--surface)",
+            borderColor: "var(--border)",
+            marginTop: "3.5rem",
+          }}
+        >
+          <ShellNav />
         </div>
 
         {children}

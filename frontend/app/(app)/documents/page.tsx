@@ -5,25 +5,17 @@ import { documents as docsApi, usage, type UsageJob, type UsageJobResponse } fro
 import { formatCurrency, formatDate } from "@/lib/format";
 import { UploadForm } from "./upload-form";
 
-function statusTone(status: string) {
+function statusTone(status: string): React.CSSProperties {
   switch (status) {
     case "completed":
-      return {
-        background: "hsl(155 50% 34% / 0.12)",
-        color: "hsl(155 50% 30%)",
-        borderColor: "hsl(155 50% 34% / 0.18)",
-      };
+      return { background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" };
     case "failed":
-      return {
-        background: "hsl(var(--destructive) / 0.12)",
-        color: "hsl(var(--destructive))",
-        borderColor: "hsl(var(--destructive) / 0.16)",
-      };
+      return { background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca" };
     default:
       return {
-        background: "hsl(var(--primary) / 0.1)",
-        color: "hsl(var(--primary))",
-        borderColor: "hsl(var(--primary) / 0.16)",
+        background: "var(--accent-surface)",
+        color: "var(--accent)",
+        border: "1px solid #bfdbfe",
       };
   }
 }
@@ -43,129 +35,133 @@ export default async function DocumentsPage() {
     usage.jobs(token).catch((): UsageJobResponse => ({ jobs: [] })),
   ]);
 
-  const jobsByDocumentId = new Map<string, UsageJob>(jobsData.jobs.map((job) => [job.document_id, job]));
+  const jobsByDocumentId = new Map<string, UsageJob>(
+    jobsData.jobs.map((job) => [job.document_id, job])
+  );
 
   return (
-    <div className="space-y-6">
-      <section className="app-panel grid gap-6 p-8 md:grid-cols-[0.95fr_1.05fr] md:p-10">
+    <div>
+      {/* Page header */}
+      <header
+        className="border-b px-8 py-6"
+        style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+      >
         <div>
           <span className="eyebrow">Document Intake</span>
-          <h1 className="mt-6 text-5xl leading-[0.92]">Upload once, then watch the pipeline move.</h1>
-          <p className="mt-5 max-w-2xl text-base leading-7" style={{ color: "hsl(var(--muted-foreground))" }}>
-            The document list is now connected to live job metadata, so each source file can lead
-            directly to its active pipeline run or completed translation output.
+          <h1 className="mt-3 text-3xl">Documents</h1>
+          <p className="mt-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+            Upload source files and track them through the translation pipeline.
           </p>
         </div>
+      </header>
 
-        <div className="app-panel-muted p-5">
-          <p className="text-xs uppercase tracking-[0.18em]" style={{ color: "hsl(var(--muted-foreground))" }}>
-            Supported Formats
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {[
-              ["PDF", "Text-layer PDF input"],
-              ["DOCX", "Structured Word documents"],
-              ["JPG", "Image OCR pipeline"],
-              ["PNG", "Image OCR pipeline"],
-            ].map(([label, copy]) => (
-              <div key={label} className="rounded-2xl border bg-white/55 p-4" style={{ borderColor: "hsl(var(--border))" }}>
-                <p className="text-sm font-semibold">{label}</p>
-                <p className="mt-1 text-sm leading-6" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  {copy}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Content */}
+      <div className="space-y-6 px-8 py-8">
+        <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+          {/* Upload panel */}
+          <article className="app-panel p-6">
+            <div className="mb-5">
+              <p
+                className="text-xs font-medium uppercase tracking-wide"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                New Upload
+              </p>
+              <h2 className="mt-1.5 text-xl">Start A Translation Job</h2>
+            </div>
+            <UploadForm token={token} />
+          </article>
 
-      <section className="grid gap-6 xl:grid-cols-[0.88fr_1.12fr]">
-        <article className="app-panel p-6">
-          <div className="mb-5">
-            <p className="text-xs uppercase tracking-[0.18em]" style={{ color: "hsl(var(--muted-foreground))" }}>
-              New Upload
-            </p>
-            <h2 className="mt-2 text-2xl">Start a translation job</h2>
-          </div>
-          <UploadForm token={token} />
-        </article>
-
-        <article className="table-shell">
-          <table>
-            <thead>
-              <tr>
-                <th>Document</th>
-                <th>Status</th>
-                <th>Language</th>
-                <th>Cost</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {docs.length === 0 ? (
+          {/* Documents table */}
+          <article className="table-shell">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={5} className="py-10 text-center text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    No documents uploaded yet.
-                  </td>
+                  <th>Document</th>
+                  <th>Status</th>
+                  <th>Language</th>
+                  <th>Cost</th>
+                  <th>Actions</th>
                 </tr>
-              ) : (
-                docs.map((doc) => {
-                  const job = jobsByDocumentId.get(doc.id);
-                  const destination =
-                    job?.status === "completed"
-                      ? `/translations/${job.job_id}`
-                      : job
-                        ? `/jobs/${job.job_id}`
-                        : null;
+              </thead>
+              <tbody>
+                {docs.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="py-10 text-center text-sm"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      No documents uploaded yet.
+                    </td>
+                  </tr>
+                ) : (
+                  docs.map((doc) => {
+                    const job = jobsByDocumentId.get(doc.id);
+                    const destination =
+                      job?.status === "completed"
+                        ? `/translations/${job.job_id}`
+                        : job
+                          ? `/jobs/${job.job_id}`
+                          : null;
 
-                  return (
-                    <tr key={doc.id}>
-                      <td>
-                        <div>
-                          <p className="text-sm font-semibold">{doc.filename}</p>
-                          <p className="mt-1 text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-                            {doc.file_type.toUpperCase()} - uploaded {formatDate(doc.created_at)}
+                    return (
+                      <tr key={doc.id}>
+                        <td>
+                          <p className="text-sm font-medium">{doc.filename}</p>
+                          <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                            {doc.file_type.toUpperCase()} · {formatDate(doc.created_at)}
                           </p>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="status-pill border" style={statusTone(job?.status ?? doc.status)}>
-                          {job?.status ?? doc.status}
-                        </span>
-                      </td>
-                      <td style={{ color: "hsl(var(--muted-foreground))" }}>
-                        {doc.source_lang ? doc.source_lang.toUpperCase() : "Pending"}
-                      </td>
-                      <td style={{ color: "hsl(var(--muted-foreground))" }}>
-                        {job ? formatCurrency(job.estimated_cost_usd) : "-"}
-                      </td>
-                      <td>
-                        <div className="flex flex-wrap items-center gap-3">
-                          {destination && (
-                            <Link href={destination} className="ghost-button px-0">
-                              {job?.status === "completed" ? "Open Result" : "Open Job"}
-                            </Link>
-                          )}
-                          <form
-                            action={async () => {
-                              "use server";
-                              await deleteDocument(doc.id, token);
-                            }}
+                        </td>
+                        <td>
+                          <span
+                            className="status-pill"
+                            style={statusTone(job?.status ?? doc.status)}
                           >
-                            <button type="submit" className="ghost-button px-0" style={{ color: "hsl(var(--destructive))" }}>
-                              Delete
-                            </button>
-                          </form>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </article>
-      </section>
+                            {job?.status ?? doc.status}
+                          </span>
+                        </td>
+                        <td className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                          {doc.source_lang ? doc.source_lang.toUpperCase() : "Pending"}
+                        </td>
+                        <td className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                          {job ? formatCurrency(job.estimated_cost_usd) : "—"}
+                        </td>
+                        <td>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {destination && (
+                              <Link
+                                href={destination}
+                                className="ghost-button px-2 py-1 text-xs"
+                              >
+                                {job?.status === "completed" ? "Result" : "Job"}
+                              </Link>
+                            )}
+                            <form
+                              action={async () => {
+                                "use server";
+                                await deleteDocument(doc.id, token);
+                              }}
+                            >
+                              <button
+                                type="submit"
+                                className="ghost-button px-2 py-1 text-xs"
+                                style={{ color: "var(--destructive)" }}
+                              >
+                                Delete
+                              </button>
+                            </form>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </article>
+        </div>
+      </div>
     </div>
   );
 }
