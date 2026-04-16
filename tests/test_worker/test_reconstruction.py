@@ -1,5 +1,6 @@
 import io
 
+from docx import Document as DocxDocument
 from worker.pipeline.reconstruction.pdf_builder import build_pdf
 from worker.pipeline.reconstruction.docx_builder import build_docx
 
@@ -36,8 +37,6 @@ def test_build_docx_returns_bytes():
 
 
 def test_build_docx_is_valid_docx():
-    from docx import Document as DocxDocument
-
     result = build_docx(CHUNKS, "contract.docx")
     # Should parse without error
     doc = DocxDocument(io.BytesIO(result))

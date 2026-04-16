@@ -1,5 +1,14 @@
+import io
+
 import pytest
+from httpx import AsyncClient, ASGITransport
+from reportlab.pdfgen.canvas import Canvas
+from sqlalchemy import update
 from unittest.mock import patch
+
+from api.dependencies import get_db, get_storage
+from api.main import app
+from api.models.job import Job
 
 
 @pytest.mark.asyncio
@@ -36,10 +45,6 @@ async def test_get_job_requires_authentication(client):
 @pytest.mark.asyncio
 async def test_cannot_access_other_orgs_job(auth_client, db, mock_storage):
     """A user from org A cannot see org B's job."""
-    from httpx import AsyncClient, ASGITransport
-    from api.main import app
-    from api.dependencies import get_db, get_storage
-
     async def override_db():
         yield db
 
@@ -98,10 +103,6 @@ async def test_get_chunks_returns_404_for_unknown_job(auth_client):
 
 @pytest.mark.asyncio
 async def test_get_chunks_forbidden_for_other_org(auth_client, client, db, mock_storage):
-    from httpx import AsyncClient, ASGITransport
-    from api.main import app
-    from api.dependencies import get_db, get_storage
-
     async def override_db():
         yield db
 
@@ -162,10 +163,6 @@ async def test_retry_returns_404_for_unknown_job(auth_client):
 @pytest.mark.asyncio
 async def test_retry_failed_job_resets_to_queued(auth_client, db, mock_storage):
     """Happy path: a failed job is re-queued and all state fields are reset."""
-    from unittest.mock import patch
-    from sqlalchemy import update
-    from api.models.job import Job
-
     with patch("api.routers.documents.process_document_task") as mock_task:
         mock_task.delay = lambda job_id: None
         upload = await auth_client.post(
@@ -185,7 +182,7 @@ async def test_retry_failed_job_resets_to_queued(auth_client, db, mock_storage):
     )
     await db.commit()
 
-    with patch("worker.celery_app.process_document_task") as mock_task:
+    with patch("api.routers.jobs.process_document_task") as mock_task:
         mock_task.delay = lambda job_id: None
         resp = await auth_client.post(f"/api/v1/jobs/{job_id}/retry")
 
@@ -200,10 +197,6 @@ async def test_retry_failed_job_resets_to_queued(auth_client, db, mock_storage):
 @pytest.mark.asyncio
 async def test_retry_returns_503_when_queue_unavailable(auth_client, db, mock_storage):
     """If Celery is unreachable, the job is rolled back to failed and 503 is returned."""
-    from unittest.mock import patch, MagicMock
-    from sqlalchemy import update
-    from api.models.job import Job
-
     with patch("api.routers.documents.process_document_task") as mock_task:
         mock_task.delay = lambda job_id: None
         upload = await auth_client.post(
@@ -217,7 +210,7 @@ async def test_retry_returns_503_when_queue_unavailable(auth_client, db, mock_st
     )
     await db.commit()
 
-    with patch("worker.celery_app.process_document_task") as mock_celery:
+    with patch("api.routers.jobs.process_document_task") as mock_celery:
         mock_celery.delay.side_effect = Exception("Redis is down")
         resp = await auth_client.post(f"/api/v1/jobs/{job_id}/retry")
 
@@ -225,8 +218,6 @@ async def test_retry_returns_503_when_queue_unavailable(auth_client, db, mock_st
 
 
 def _minimal_pdf() -> bytes:
-    import io
-    from reportlab.pdfgen.canvas import Canvas
     buf = io.BytesIO()
     c = Canvas(buf)
     c.drawString(72, 720, "Minimal test PDF content.")

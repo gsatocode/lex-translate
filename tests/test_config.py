@@ -1,10 +1,10 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from api.config import settings
+
 
 def test_settings_load():
-    from api.config import settings
-
     assert settings.secret_key is not None
     assert settings.database_url.startswith("postgresql")
     assert settings.redis_url.startswith("redis")

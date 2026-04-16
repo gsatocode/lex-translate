@@ -1,6 +1,7 @@
 from celery import Celery
 
 from api.config import settings
+from worker.pipeline.orchestrator import run_pipeline
 
 celery_app = Celery(
     "lex_translate",
@@ -19,5 +20,4 @@ celery_app.conf.update(
 
 @celery_app.task(name="process_document")
 def process_document_task(job_id: str) -> None:
-    from worker.pipeline.orchestrator import run_pipeline
     run_pipeline(job_id)

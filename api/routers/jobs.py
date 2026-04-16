@@ -9,6 +9,7 @@ from api.models.job import Job
 from api.models.translation import TranslationChunk
 from api.models.user import User
 from api.schemas.job import ChunkResponse, JobResponse
+from worker.celery_app import process_document_task
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -85,7 +86,6 @@ async def retry_job(
     await db.commit()
 
     try:
-        from worker.celery_app import process_document_task
         process_document_task.delay(job_id)
     except Exception as exc:
         logger.exception("Failed to enqueue retry for job %s", job_id)

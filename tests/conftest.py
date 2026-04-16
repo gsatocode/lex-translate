@@ -4,6 +4,8 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from unittest.mock import MagicMock, AsyncMock
 
+from api.dependencies import get_db, get_storage
+from api.main import app
 from api.models.base import Base
 from storage.base import StorageAdapter
 
@@ -35,9 +37,6 @@ def mock_storage():
 
 @pytest_asyncio.fixture
 async def client(db, mock_storage):
-    from api.main import app
-    from api.dependencies import get_db, get_storage
-
     async def override_db():
         yield db
 

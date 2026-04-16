@@ -1,6 +1,10 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from worker.pipeline.translation.anthropic import AnthropicAdapter
+from worker.pipeline.translation.groq import GroqAdapter
+from worker.pipeline.translation.openai import OpenAIAdapter
+
 
 # ---------------------------------------------------------------------------
 # AnthropicAdapter
@@ -18,7 +22,6 @@ async def test_anthropic_adapter_returns_translation_result():
         MockClient.return_value.messages.create = AsyncMock(return_value=mock_message)
         with patch("worker.pipeline.translation.anthropic.settings") as mock_settings:
             mock_settings.anthropic_api_key = "sk-test"
-            from worker.pipeline.translation.anthropic import AnthropicAdapter
             adapter = AnthropicAdapter()
             result = await adapter.translate("O réu compareceu.", "pt", "", {})
 
@@ -37,7 +40,6 @@ async def test_anthropic_adapter_raises_on_empty_content():
         MockClient.return_value.messages.create = AsyncMock(return_value=mock_message)
         with patch("worker.pipeline.translation.anthropic.settings") as mock_settings:
             mock_settings.anthropic_api_key = "sk-test"
-            from worker.pipeline.translation.anthropic import AnthropicAdapter
             adapter = AnthropicAdapter()
             with pytest.raises(RuntimeError, match="empty content"):
                 await adapter.translate("texto", "pt", "", {})
@@ -56,7 +58,6 @@ async def test_anthropic_adapter_passes_glossary_and_context():
         MockClient.return_value.messages.create = create_mock
         with patch("worker.pipeline.translation.anthropic.settings") as mock_settings:
             mock_settings.anthropic_api_key = "sk-test"
-            from worker.pipeline.translation.anthropic import AnthropicAdapter
             adapter = AnthropicAdapter()
             await adapter.translate("texto", "pt", "prior ctx", {"réu": "defendant"})
 
@@ -81,7 +82,6 @@ async def test_openai_adapter_returns_translation_result():
         MockClient.return_value.chat.completions.create = AsyncMock(return_value=mock_response)
         with patch("worker.pipeline.translation.openai.settings") as mock_settings:
             mock_settings.openai_api_key = "sk-test"
-            from worker.pipeline.translation.openai import OpenAIAdapter
             adapter = OpenAIAdapter()
             result = await adapter.translate("texto", "pt", "", {})
 
@@ -101,7 +101,6 @@ async def test_openai_adapter_handles_none_usage():
         MockClient.return_value.chat.completions.create = AsyncMock(return_value=mock_response)
         with patch("worker.pipeline.translation.openai.settings") as mock_settings:
             mock_settings.openai_api_key = "sk-test"
-            from worker.pipeline.translation.openai import OpenAIAdapter
             adapter = OpenAIAdapter()
             result = await adapter.translate("texto", "pt", "", {})
 
@@ -118,7 +117,6 @@ async def test_openai_adapter_raises_on_empty_choices():
         MockClient.return_value.chat.completions.create = AsyncMock(return_value=mock_response)
         with patch("worker.pipeline.translation.openai.settings") as mock_settings:
             mock_settings.openai_api_key = "sk-test"
-            from worker.pipeline.translation.openai import OpenAIAdapter
             adapter = OpenAIAdapter()
             with pytest.raises(RuntimeError, match="empty choices"):
                 await adapter.translate("texto", "pt", "", {})
@@ -139,7 +137,6 @@ async def test_groq_adapter_returns_translation_result():
         MockClient.return_value.chat.completions.create = AsyncMock(return_value=mock_response)
         with patch("worker.pipeline.translation.groq.settings") as mock_settings:
             mock_settings.groq_api_key = "gsk-test"
-            from worker.pipeline.translation.groq import GroqAdapter
             adapter = GroqAdapter()
             result = await adapter.translate("texto", "pt", "", {})
 
@@ -157,7 +154,6 @@ async def test_groq_adapter_raises_on_empty_choices():
         MockClient.return_value.chat.completions.create = AsyncMock(return_value=mock_response)
         with patch("worker.pipeline.translation.groq.settings") as mock_settings:
             mock_settings.groq_api_key = "gsk-test"
-            from worker.pipeline.translation.groq import GroqAdapter
             adapter = GroqAdapter()
             with pytest.raises(RuntimeError, match="empty choices"):
                 await adapter.translate("texto", "pt", "", {})
@@ -174,7 +170,6 @@ async def test_groq_adapter_handles_none_usage():
         MockClient.return_value.chat.completions.create = AsyncMock(return_value=mock_response)
         with patch("worker.pipeline.translation.groq.settings") as mock_settings:
             mock_settings.groq_api_key = "gsk-test"
-            from worker.pipeline.translation.groq import GroqAdapter
             adapter = GroqAdapter()
             result = await adapter.translate("texto", "pt", "", {})
 

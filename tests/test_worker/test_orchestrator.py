@@ -1,14 +1,20 @@
+import io
 import json
 
 import pytest
 import pytest_asyncio
+from reportlab.pdfgen.canvas import Canvas
+from sqlalchemy import select
 from unittest.mock import AsyncMock, MagicMock
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from api.models.base import Base
 from api.models.document import Document
 from api.models.job import Job
+from api.models.translation import OutputDocument, TranslationChunk
 from api.models.user import Organization, User
+from api.models.validation import ValidationReport
+from worker.pipeline.orchestrator import _run_pipeline
 from worker.pipeline.translation.base import TranslationResult
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
@@ -62,10 +68,8 @@ async def test_pipeline_completes_job_successfully(db_session):
         provider="mock",
     ))
 
-    from worker.pipeline.orchestrator import _run_pipeline
     await _run_pipeline("job-1", _session_factory=factory, _storage=fake_storage, _llm=fake_llm)
 
-    from sqlalchemy import select
     result = await session.execute(select(Job).where(Job.id == "job-1"))
     job = result.scalar_one()
 
@@ -82,10 +86,8 @@ async def test_pipeline_marks_job_failed_on_storage_error(db_session):
     fake_storage = MagicMock()
     fake_storage.download = AsyncMock(side_effect=Exception("R2 unavailable"))
 
-    from worker.pipeline.orchestrator import _run_pipeline
     await _run_pipeline("job-1", _session_factory=factory, _storage=fake_storage, _llm=None)
 
-    from sqlalchemy import select
     result = await session.execute(select(Job).where(Job.id == "job-1"))
     job = result.scalar_one()
 
@@ -105,10 +107,8 @@ async def test_pipeline_marks_job_failed_on_llm_error(db_session):
     fake_llm = MagicMock()
     fake_llm.translate = AsyncMock(side_effect=Exception("LLM quota exceeded"))
 
-    from worker.pipeline.orchestrator import _run_pipeline
     await _run_pipeline("job-1", _session_factory=factory, _storage=fake_storage, _llm=fake_llm)
 
-    from sqlalchemy import select
     result = await session.execute(select(Job).where(Job.id == "job-1"))
     job = result.scalar_one()
 
@@ -132,11 +132,8 @@ async def test_pipeline_saves_translation_chunks(db_session):
         provider="mock",
     ))
 
-    from worker.pipeline.orchestrator import _run_pipeline
     await _run_pipeline("job-1", _session_factory=factory, _storage=fake_storage, _llm=fake_llm)
 
-    from sqlalchemy import select
-    from api.models.translation import TranslationChunk
     result = await session.execute(
         select(TranslationChunk).where(TranslationChunk.job_id == "job-1")
     )
@@ -162,11 +159,8 @@ async def test_pipeline_saves_validation_report(db_session):
         provider="mock",
     ))
 
-    from worker.pipeline.orchestrator import _run_pipeline
     await _run_pipeline("job-1", _session_factory=factory, _storage=fake_storage, _llm=fake_llm)
 
-    from sqlalchemy import select
-    from api.models.validation import ValidationReport
     result = await session.execute(
         select(ValidationReport).where(ValidationReport.job_id == "job-1")
     )
@@ -192,11 +186,8 @@ async def test_pipeline_saves_output_documents(db_session):
         provider="mock",
     ))
 
-    from worker.pipeline.orchestrator import _run_pipeline
     await _run_pipeline("job-1", _session_factory=factory, _storage=fake_storage, _llm=fake_llm)
 
-    from sqlalchemy import select
-    from api.models.translation import OutputDocument
     result = await session.execute(
         select(OutputDocument).where(OutputDocument.job_id == "job-1")
     )
@@ -210,15 +201,12 @@ async def test_pipeline_saves_output_documents(db_session):
 async def test_pipeline_no_ops_for_missing_job(db_session):
     _, factory = db_session
     fake_storage = MagicMock()
-    from worker.pipeline.orchestrator import _run_pipeline
     # Should not raise
     await _run_pipeline("nonexistent-job", _session_factory=factory, _storage=fake_storage, _llm=None)
 
 
 def _minimal_pdf() -> bytes:
     """Build a minimal real PDF with one sentence for testing."""
-    import io
-    from reportlab.pdfgen.canvas import Canvas
     buf = io.BytesIO()
     c = Canvas(buf)
     c.drawString(72, 720, "The applicant was born on 01/01/1990 in Lisbon, Portugal.")

@@ -1,5 +1,8 @@
 import pytest
+from httpx import AsyncClient, ASGITransport
 
+from api.dependencies import get_db, get_storage
+from api.main import app
 
 # --- GET /glossary ---
 
@@ -179,10 +182,6 @@ async def test_import_empty_list(auth_client):
 @pytest.mark.asyncio
 async def test_glossary_org_isolation(auth_client, client, db, mock_storage):
     """Org A's glossary terms are not visible to org B."""
-    from httpx import AsyncClient, ASGITransport
-    from api.main import app
-    from api.dependencies import get_db, get_storage
-
     async def override_db():
         yield db
 

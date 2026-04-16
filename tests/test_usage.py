@@ -1,6 +1,12 @@
+import io
+
 import pytest
+from httpx import AsyncClient, ASGITransport
+from reportlab.pdfgen.canvas import Canvas
 from unittest.mock import patch
 
+from api.dependencies import get_db, get_storage
+from api.main import app
 from api.models.translation import TranslationChunk
 
 
@@ -18,8 +24,6 @@ async def _create_job(auth_client, mock_storage):
 
 
 def _minimal_pdf() -> bytes:
-    import io
-    from reportlab.pdfgen.canvas import Canvas
     buf = io.BytesIO()
     c = Canvas(buf)
     c.drawString(72, 720, "Minimal test PDF content.")
@@ -134,10 +138,6 @@ async def test_job_usage_pagination(auth_client, db, mock_storage):
 @pytest.mark.asyncio
 async def test_usage_org_isolation(auth_client, client, db, mock_storage):
     """Org B cannot see org A's usage."""
-    from httpx import AsyncClient, ASGITransport
-    from api.main import app
-    from api.dependencies import get_db, get_storage
-
     async def override_db():
         yield db
 
