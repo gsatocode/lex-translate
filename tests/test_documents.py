@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+from sqlalchemy import select
 
 from api.models.document import Document
 from api.models.job import Job
@@ -18,6 +19,17 @@ async def test_upload_pdf_returns_document_and_job_ids(auth_client, mock_storage
     data = resp.json()
     assert "document_id" in data
     assert "job_id" in data
+
+
+@pytest.mark.asyncio
+async def test_upload_tiff_returns_document_and_job_ids(auth_client, mock_storage):
+    with patch("api.routers.documents.process_document_task") as mock_task:
+        mock_task.delay = lambda job_id: None
+        resp = await auth_client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("scan.tiff", b"II*\x00fake", "image/tiff")},
+        )
+    assert resp.status_code == 201
 
 
 @pytest.mark.asyncio
@@ -111,7 +123,6 @@ async def test_upload_returns_503_when_task_queue_unavailable(auth_client, mock_
     assert resp.status_code == 503
 
     # Job must be marked failed — not silently stuck as "queued"
-    from sqlalchemy import select
     result = await db.execute(select(Job))
     jobs = result.scalars().all()
     assert len(jobs) == 1
@@ -134,8 +145,6 @@ async def test_upload_storage_failure_rolls_back_document_and_job(auth_client, m
         )
 
     assert resp.status_code == 502
-
-    from sqlalchemy import select
 
     docs = (await db.execute(select(Document))).scalars().all()
     jobs = (await db.execute(select(Job))).scalars().all()

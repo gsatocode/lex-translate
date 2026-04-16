@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from api.config import settings
 from api.models.document import Document
 from api.models.glossary import GlossaryTerm
 from api.models.job import Job
@@ -13,8 +14,9 @@ from api.models.translation import OutputDocument, TranslationChunk
 from api.models.validation import ValidationReport
 from worker.pipeline.detect import detect_language
 from worker.pipeline.glossary.enforcer import filter_glossary
-from worker.pipeline.reconstruction.docx_builder import build_docx
-from worker.pipeline.reconstruction.pdf_builder import build_pdf
+from worker.pipeline.ocr.docx_adapter import DocxAdapter
+from worker.pipeline.ocr.paddle_adapter import PaddleOCRAdapter
+from worker.pipeline.ocr.pdf_adapter import PDFOCRAdapter
 from worker.pipeline.segmentation.chunker import chunk_text
 from worker.pipeline.translation.base import LLMAdapter, TranslationResult
 from worker.pipeline.validation.checker import validate_translation
@@ -33,17 +35,13 @@ _STAGE_PROGRESS = {
 
 def _resolve_ocr_adapter(file_type: str):
     if file_type == "pdf":
-        from worker.pipeline.ocr.pdfplumber_adapter import PDFPlumberAdapter
-        return PDFPlumberAdapter()
+        return PDFOCRAdapter()
     if file_type == "docx":
-        from worker.pipeline.ocr.docx_adapter import DocxAdapter
         return DocxAdapter()
-    from worker.pipeline.ocr.paddle_adapter import PaddleOCRAdapter
     return PaddleOCRAdapter()
 
 
 def _get_default_llm() -> LLMAdapter:
-    from api.config import settings
     provider = settings.llm_provider.lower()
     if provider == "anthropic":
         from worker.pipeline.translation.anthropic import AnthropicAdapter
@@ -227,6 +225,9 @@ async def _run_pipeline(
 
             # -- Reconstruction --
             await _set_job(db, job, current_stage="rebuild", progress=_STAGE_PROGRESS["validate"])
+            from worker.pipeline.reconstruction.docx_builder import build_docx
+            from worker.pipeline.reconstruction.pdf_builder import build_pdf
+
             pdf_bytes = build_pdf(translation_pairs, doc.filename)
             docx_bytes = build_docx(translation_pairs, doc.filename)
             await _set_job(db, job, current_stage="rebuild", progress=_STAGE_PROGRESS["rebuild"])

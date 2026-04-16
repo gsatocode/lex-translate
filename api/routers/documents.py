@@ -20,6 +20,7 @@ ALLOWED_CONTENT_TYPES: dict[str, str] = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
     "image/jpeg": "jpg",
     "image/png": "png",
+    "image/tiff": "tiff",
 }
 
 VALID_EXTENSIONS: dict[str, str] = {
@@ -28,6 +29,8 @@ VALID_EXTENSIONS: dict[str, str] = {
     ".jpg": "jpg",
     ".jpeg": "jpg",
     ".png": "png",
+    ".tif": "tiff",
+    ".tiff": "tiff",
 }
 
 router = APIRouter()

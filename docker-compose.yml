@@ -1,6 +1,9 @@
 services:
   api:
-    build: .
+    build:
+      context: .
+      args:
+        ENABLE_PADDLE_OCR: ${ENABLE_PADDLE_OCR:-0}
     entrypoint: ["/app/scripts/entrypoint.sh"]
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
@@ -16,7 +19,10 @@ services:
         condition: service_healthy
 
   worker:
-    build: .
+    build:
+      context: .
+      args:
+        ENABLE_PADDLE_OCR: ${ENABLE_PADDLE_OCR:-0}
     command: celery -A worker.celery_app worker --loglevel=info --concurrency=2
     restart: unless-stopped
     volumes:

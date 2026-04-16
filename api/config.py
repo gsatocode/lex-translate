@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str = Field(default="")
     openai_api_key: str = Field(default="")
     groq_api_key: str = Field(default="")
+    ocr_paddle_lang: str = Field(default="pt")
+    ocr_min_text_chars: int = Field(default=20, ge=1)
 
     r2_account_id: str = Field(default="")
     r2_access_key: str = Field(default="")

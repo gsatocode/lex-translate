@@ -1,6 +1,6 @@
 # lex-translate
 
-Legal document translation API. Accepts PDF and DOCX files, extracts text via OCR, translates using a pluggable LLM provider (Anthropic, OpenAI, or Groq), validates translation quality via back-translation checks, and reconstructs the output in the original format.
+Legal document translation API. Accepts PDF, DOCX, and common scanned image formats, extracts text via OCR, translates using a pluggable LLM provider (Anthropic, OpenAI, or Groq), validates translation quality via back-translation checks, and reconstructs the output in PDF and DOCX.
 
 ## Requirements
 
@@ -12,6 +12,7 @@ Legal document translation API. Accepts PDF and DOCX files, extracts text via OC
 ```bash
 cp .env.example .env
 # Fill in at minimum: SECRET_KEY, LLM_PROVIDER, and the matching *_API_KEY
+# Set ENABLE_PADDLE_OCR=1 if you need scanned PDFs or image OCR in Docker
 docker compose up -d postgres redis
 pip install -r requirements-dev.txt
 alembic upgrade head
@@ -35,6 +36,7 @@ See `.env.example` for the full list. Required for the worker pipeline:
 | `ANTHROPIC_API_KEY` | Required if `LLM_PROVIDER=anthropic` |
 | `OPENAI_API_KEY` | Required if `LLM_PROVIDER=openai` |
 | `GROQ_API_KEY` | Required if `LLM_PROVIDER=groq` |
+| `OCR_PADDLE_LANG` | PaddleOCR language code for scanned PDFs and images (`pt` by default) |
 | `SECRET_KEY` | JWT signing secret |
 | `DATABASE_URL` | Postgres connection string |
 | `REDIS_URL` | Redis connection string (for Celery) |
@@ -52,7 +54,7 @@ queued → processing → completed
 
 | Endpoint | Description |
 |----------|-------------|
-| `POST /api/v1/documents/upload` | Upload a PDF or DOCX; returns `job_id` |
+| `POST /api/v1/documents/upload` | Upload a PDF, DOCX, JPG, PNG, or TIFF; returns `job_id` |
 | `GET /api/v1/jobs/{job_id}` | Poll job status and progress (0–100) |
 | `GET /api/v1/jobs/{job_id}/chunks` | Retrieve translation chunks for a completed job |
 | `POST /api/v1/jobs/{job_id}/retry` | Re-queue a `failed` job. Returns 400 if not in `failed` state. |
@@ -61,6 +63,6 @@ queued → processing → completed
 
 | Adapter | Format | Notes |
 |---------|--------|-------|
-| PDFPlumber | PDF (text-layer) | Default for `.pdf` |
+| PDFPlumber + PaddleOCR fallback | PDF | Text-layer PDFs use embedded text; scanned PDFs fall back to OCR |
 | python-docx | DOCX | Default for `.docx` |
 | PaddleOCR | Scanned images | Optional — install separately: `pip install paddleocr` (requires CUDA for GPU acceleration) |
